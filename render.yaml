@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: receipt-automation
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false          # Render 대시보드에서 직접 입력
+      - key: SHEETS_ID
+        value: "12h48_MBGeRmGXP2exEY3fNFAPxYdnnAqZc6T8VbnBp0"
+      - key: SLACK_USER_ID
+        value: "U03QB1DK12L"
+      - key: WEBHOOK_SECRET
+        sync: false          # 원하는 비밀 토큰 입력
+      - key: DRIVE_ROOT_FOLDER
+        sync: false          # Drive 루트 폴더 ID (선택)
+
+  - type: cron
+    name: receipt-weekly-report
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    schedule: "0 9 * * 5"   # 매주 금요일 UTC 09:00 = KST 18:00
+    startCommand: "python weekly_report.py"
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SHEETS_ID
+        value: "12h48_MBGeRmGXP2exEY3fNFAPxYdnnAqZc6T8VbnBp0"
+      - key: SLACK_USER_ID
+        value: "U03QB1DK12L"
