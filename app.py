@@ -220,19 +220,41 @@ def receive_receipt():
     media_type  = "image/jpeg"
     now         = datetime.now()
 
+    # 1) multipart files
     if "image" in request.files:
         f = request.files["image"]
         image_bytes = f.read()
         ext = (f.filename or "").rsplit(".", 1)[-1].lower()
-        if ext in ("png",):
+        if ext == "png":
             media_type = "image/png"
-        elif ext in ("webp",):
+        elif ext == "webp":
             media_type = "image/webp"
+    # 2) 다른 필드명으로 온 파일
+    elif request.files:
+        f = list(request.files.values())[0]
+        image_bytes = f.read()
+    # 3) form 필드에 base64로 온 경우
+    elif request.form.get("image"):
+        val = request.form.get("image")
+        try:
+            import base64 as _b64
+            image_bytes = _b64.b64decode(val)
+        except Exception:
+            image_bytes = val.encode()
+    # 4) raw body
     elif request.data:
         image_bytes = request.data
 
     if not image_bytes:
-        return jsonify({"error": "No image provided"}), 400
+        # 디버그용: 요청 정보 포함
+        debug = {
+            "error": "No image provided",
+            "files": list(request.files.keys()),
+            "form_keys": list(request.form.keys()),
+            "data_len": len(request.data),
+            "content_type": request.content_type,
+        }
+        return jsonify(debug), 400
 
     filename   = now.strftime("receipt_%Y%m%d_%H%M%S.jpg")
     year_month = now.strftime("%Y-%m")
@@ -248,6 +270,21 @@ def receive_receipt():
 
     return jsonify(result)
 
+
+
+@app.route("/debug", methods=["POST", "GET"])
+def debug_request():
+    """요청 내용 확인용"""
+    info = {
+        "method": request.method,
+        "content_type": request.content_type,
+        "files": list(request.files.keys()),
+        "form": {k: v[:50] if isinstance(v, str) else str(type(v)) for k, v in request.form.items()},
+        "data_len": len(request.data),
+        "data_type": str(type(request.data)),
+        "headers": {k: v for k, v in request.headers if k.startswith("X-") or k == "Content-Type"},
+    }
+    return jsonify(info)
 
 @app.route("/health", methods=["GET"])
 def health():
